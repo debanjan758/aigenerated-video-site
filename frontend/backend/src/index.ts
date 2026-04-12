@@ -63,14 +63,6 @@ export type Step = "input" | "analyzing" | "results";
 export type FilterCategory = "All" | "Hook" | "Funny" | "Emotional" | "Educational" | "Trending" | "Motivational";
 export type SortOption = "viralScore" | "duration" | "hookStrength" | "retention";
 
-type VideoInfo = {
-  title: string;
-  channel: string;
-  duration: string;
-  thumbnailUrl: string;
-  videoId: string;
-};
-
 function extractVideoId(url: string): string | null {
   // Handle various YouTube URL formats
   const patterns = [
@@ -83,7 +75,7 @@ function extractVideoId(url: string): string | null {
 
   for (const pattern of patterns) {
     const match = url.match(pattern);
-    if (match) {
+    if (match && match[1]) {
       console.log(`✓ Extracted video ID: ${match[1]}`);
       return match[1];
     }
@@ -107,8 +99,8 @@ function formatTime(totalSeconds: number): string {
 
 function runFfmpeg(input: string, startSec: number, durationSec: number, output: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (!ffmpegPath) {
-      reject(new Error("ffmpeg-static not found"));
+    if (!ffmpegPath || typeof ffmpegPath !== "string") {
+      reject(new Error("ffmpeg-static not found or invalid"));
       return;
     }
 
@@ -129,18 +121,18 @@ function runFfmpeg(input: string, startSec: number, durationSec: number, output:
       output,
     ];
 
-    const ff = spawn(ffmpegPath, args);
+    const ff = spawn(ffmpegPath as string, args) as any;
 
     let errorOutput = "";
-    ff.stderr?.on("data", (data) => {
+    ff.stderr?.on("data", (data: any) => {
       errorOutput += data.toString();
     });
 
-    ff.on("error", (err) => {
+    ff.on("error", (err: any) => {
       reject(err);
     });
 
-    ff.on("close", (code) => {
+    ff.on("close", (code: any) => {
       if (code === 0) {
         resolve();
       } else {
@@ -213,6 +205,12 @@ function downloadVideo(url: string, outputPath: string): Promise<void> {
           }
 
           const selectedFormat = audioVideoFormats[0];
+          if (!selectedFormat) {
+            console.log(`[downloadVideo] ✗ No valid format selected`);
+            attemptIndex++;
+            setTimeout(() => attemptDownload(), 1500);
+            return;
+          }
           console.log(`[downloadVideo] Selected format: itag=${selectedFormat.itag}, mimeType=${selectedFormat.mimeType}, contentLength=${(parseInt(selectedFormat.contentLength || "0") / 1024 / 1024).toFixed(1)}MB`);
 
           const stream = ytdl(url, {
@@ -544,13 +542,13 @@ app.post("/api/analyze", async (req, res) => {
         successfulClips++;
       }
 
-      const category = categories[i % categories.length];
-      const reasonList = reasons[category] || reasons["Hook"];
-      const reason = reasonList[i % reasonList.length];
+      const category = categories[i % categories.length] || "Hook";
+      const reasonList: string[] = (reasons[category as keyof typeof reasons] || reasons["Hook"] || []);
+      const reason: string = reasonList.length > 0 ? reasonList[i % reasonList.length] : "Great clip moment";
 
       // Add clip metadata regardless of encoding success
       // This ensures clients see the clips even if some files failed
-      clips.push({
+      const clipData: Clip = {
         id: `${videoId}-${i + 1}`,
         title: `${details.title.substring(0, 50)} - Clip ${i + 1}`,
         startTime: formatTime(start),
@@ -559,9 +557,9 @@ app.post("/api/analyze", async (req, res) => {
         viralScore: Math.max(60, 95 - Math.floor(i * 2.5)),
         reason,
         hashtags: ["#shorts", "#viral", "#trending", "#fyp"],
-        thumbnail: thumbnailGradients[i % thumbnailGradients.length],
-        category,
-        copyrightRisk: copyrightRisks[i % copyrightRisks.length],
+        thumbnail: thumbnailGradients[i % thumbnailGradients.length] || "from-red-500 to-orange-500",
+        category: category,
+        copyrightRisk: (copyrightRisks[i % copyrightRisks.length] || "Safe") as "Safe" | "Low Risk" | "Medium Risk",
         engagement: {
           estimatedViews: `${Math.floor(100000 + Math.random() * 900000)}+`,
           shareability: Math.floor(60 + Math.random() * 40),
@@ -572,8 +570,13 @@ app.post("/api/analyze", async (req, res) => {
           youtube: false,
           instagram: false,
         },
-        downloadUrl: clipEncoded ? `http://localhost:3001/api/download/${videoId}/${clipFile}` : null,
-      });
+      };
+
+      if (clipEncoded) {
+        clipData.downloadUrl = `http://localhost:3001/api/download/${videoId}/${clipFile}`;
+      }
+
+      clips.push(clipData);
     }
 
     clips.sort((a, b) => b.viralScore - a.viralScore);
