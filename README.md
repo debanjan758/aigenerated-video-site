@@ -71,7 +71,88 @@ aigenerated-video-site/
 │   └── index.html
 └── README.md
 ```
+## Infrastructure & Deployment 🐳
 
+### Docker Setup
+
+This project is fully containerized for easy deployment and local development.
+
+#### Build and Run with Docker Compose
+
+1. **Install Docker Desktop** — Download from [docker.com](https://www.docker.com/products/docker-desktop)
+
+2. **Build and start services**
+   ```bash
+   docker-compose up --build
+   ```
+
+3. **Access the application**
+   - Frontend: `http://localhost` (Nginx, port 80)
+   - Backend API: `http://localhost:3001`
+
+4. **Stop services**
+   ```bash
+   docker-compose down
+   ```
+
+#### Docker Architecture
+
+**Backend Service:**
+- Base image: `node:22-alpine`
+- Includes FFmpeg for video processing
+- Runs on port 3001
+- Health checks enabled
+- Auto-restart on failure
+
+**Frontend Service:**
+- Multi-stage build for optimized image size
+- Nginx reverse proxy
+- Automatic API proxy to backend (http://backend:3001)
+- Static file serving with SPA routing support
+- Runs on port 80
+
+### CI/CD Pipeline
+
+Automated testing and building via GitHub Actions:
+
+- ✅ **Build Verification** — Compiles frontend and backend TypeScript
+- ✅ **Docker Image Build** — Builds both backend and frontend Docker images
+- ✅ **Docker Compose Test** — Starts services and validates health checks
+- ✅ **API Health Check** — Verifies backend is accessible and responding
+
+**Workflow triggers:**
+- On push to `main` or `develop` branches
+- On pull requests to `main` or `develop` branches
+
+View the workflow file: [.github/workflows/ci.yml](.github/workflows/ci.yml)
+
+### Deployment Notes
+
+#### Environment Variables
+
+**Production:**
+```bash
+NODE_ENV=production
+VITE_API_URL=https://your-domain.com  # Frontend
+```
+
+**Local Development:**
+```bash
+NODE_ENV=development
+VITE_API_URL=http://localhost:3001    # Frontend
+```
+
+#### Performance Optimizations
+
+- **Frontend**: Pre-built assets cached in Nginx, gzip compression enabled
+- **Backend**: All dependencies pre-installed, runs with tsx for hot-reload in dev
+- **Volumes**: Persistent uploads and outputs directories mounted from host
+
+#### Resource Requirements
+
+- **Memory**: Minimum 2GB recommended for Docker Desktop
+- **Disk Space**: ~500MB for container images
+- **CPU**: 2+ cores for smooth operation
 ## Getting Started 🚀
 
 ### Prerequisites
