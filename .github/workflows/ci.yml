@@ -72,16 +72,11 @@ jobs:
       - name: Start Docker services
         run: docker compose up -d --build
 
-      - name: Wait for backend to start
-        run: |
-          for i in {1..30}; do
-            if docker compose exec -T backend npm run dev &> /dev/null; then
-              echo "Backend started"
-              break
-            fi
-            echo "Waiting for backend... ($i/30)"
-            sleep 2
-          done
+      - name: Wait for services to start
+        run: sleep 10
+
+      - name: Check service stats
+        run: docker compose ps
 
       - name: Stop services
         if: always()
