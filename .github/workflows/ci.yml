@@ -22,7 +22,7 @@ jobs:
       - name: Install frontend dependencies
         run: |
           cd frontend
-          npm ci
+          npm install
 
       - name: Build frontend
         run: |
@@ -32,7 +32,7 @@ jobs:
       - name: Install backend dependencies
         run: |
           cd frontend/backend
-          npm ci
+          npm install
 
   docker-build:
     runs-on: ubuntu-latest
