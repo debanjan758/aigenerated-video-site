@@ -7,7 +7,7 @@ RUN apk add --no-cache ffmpeg wget
 
 # Copy package files
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm install
 
 # Copy source and config
 COPY tsconfig.json ./
